@@ -86,7 +86,7 @@ def get_args():
                         help='Target domain', default='webcam')
     parser.add_argument('--nclass', type=int,
                         help='Number of classes', default=31)
-    parser.add_argument('--batch_size', type=float,
+    parser.add_argument('--batch_size', type=int,
                         help='batch size', default=32)
     parser.add_argument('--nepoch', type=int,
                         help='Total epoch num', default=200)
@@ -102,12 +102,40 @@ def get_args():
                         help='L2 weight decay', default=5e-4)
     parser.add_argument('--bottleneck', type=str2bool,
                         nargs='?', const=True, default=True)
+    parser.add_argument('--pretrained', type=str2bool,
+                        nargs='?', const=True, default=True,
+                        help='Use ImageNet pretrained ResNet-50 backbone')
+    parser.add_argument('--smoke_test', type=str2bool,
+                        nargs='?', const=True, default=False,
+                        help='Run a single synthetic forward/backward pass and exit')
     parser.add_argument('--log_interval', type=int,
                         help='Log interval', default=10)
     parser.add_argument('--gpu', type=str,
                         help='GPU ID', default='0')
     args = parser.parse_args()
     return args
+
+
+def run_smoke_test(args):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Running smoke test on {device}.')
+    model = DSAN(num_classes=args.nclass, bottle_neck=args.bottleneck,
+                 pretrained=False).to(device)
+    model.train()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+
+    data_source = torch.randn(args.batch_size, 3, 224, 224, device=device)
+    data_target = torch.randn(args.batch_size, 3, 224, 224, device=device)
+    label_source = torch.randint(
+        0, args.nclass, (args.batch_size,), device=device)
+
+    optimizer.zero_grad()
+    label_source_pred, loss_lmmd = model(data_source, data_target, label_source)
+    loss_cls = F.nll_loss(F.log_softmax(label_source_pred, dim=1), label_source)
+    loss = loss_cls + args.weight * loss_lmmd
+    loss.backward()
+    optimizer.step()
+    print(f'Smoke test passed. Loss: {loss.item():.4f}, cls: {loss_cls.item():.4f}, lmmd: {loss_lmmd.item():.4f}')
 
 
 if __name__ == '__main__':
@@ -121,9 +149,14 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = False
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
+    if args.smoke_test:
+        run_smoke_test(args)
+        raise SystemExit(0)
+
     dataloaders = load_data(args.root_path, args.src,
                             args.tar, args.batch_size)
-    model = DSAN(num_classes=args.nclass).cuda()
+    model = DSAN(num_classes=args.nclass, bottle_neck=args.bottleneck,
+                 pretrained=args.pretrained).cuda()
     
     correct = 0
     stop = 0

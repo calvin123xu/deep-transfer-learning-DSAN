@@ -12,6 +12,19 @@ The contributions of this paper are summarized as follows.
 2. You can change the `src` and `tgt` in `main.py` to set different transfer tasks.
 3. Run `python main.py`.
 
+### Minimal smoke test before full training
+If you want to verify the model and loss can run end-to-end before preparing a full dataset, use:
+
+```bash
+python main.py --smoke_test true --nclass 31 --batch_size 4
+```
+
+This runs one synthetic forward/backward step and exits.
+
+### Finetuning vs training from scratch
+- `--pretrained true` (default): load ImageNet pretrained ResNet-50 backbone (finetune mode).
+- `--pretrained false`: random initialize backbone (train from scratch).
+
 ## Results on Office31
 | Method | A - W | D - W | W - D | A - D | D - A | W - A | Average |
 |:--------------:|:-----:|:-----:|:-----:|:-----:|:----:|:----:|:-------:|

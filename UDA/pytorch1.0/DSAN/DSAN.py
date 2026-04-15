@@ -5,9 +5,9 @@ import lmmd
 
 class DSAN(nn.Module):
 
-    def __init__(self, num_classes=31, bottle_neck=True):
+    def __init__(self, num_classes=31, bottle_neck=True, pretrained=True):
         super(DSAN, self).__init__()
-        self.feature_layers = ResNet.resnet50(True)
+        self.feature_layers = ResNet.resnet50(pretrained)
         self.lmmd_loss = lmmd.LMMD_loss(class_num=num_classes)
         self.bottle_neck = bottle_neck
         if bottle_neck:
