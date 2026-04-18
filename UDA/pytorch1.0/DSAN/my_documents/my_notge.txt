@@ -1,5 +1,7 @@
 conda activate /speed-scratch/qiaoyu/speed-hpc/env/dsan
 
+/speed-scratch/qiaoyu/speed-hpc/datasets/PACS
+
 最小训练代码修改：
 如果目标是先把最小实验跑通，我给你的判断很直接：
 
