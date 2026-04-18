@@ -9,8 +9,10 @@ from DSAN import DSAN
 import data_loader
 
 
-def load_data(root_path, src, tar, batch_size):
-    kwargs = {'num_workers': 1, 'pin_memory': True}
+def load_data(root_path, src, tar, batch_size, num_workers=0, pin_memory=None):
+    if pin_memory is None:
+        pin_memory = torch.cuda.is_available()
+    kwargs = {'num_workers': num_workers, 'pin_memory': pin_memory}
     loader_src = data_loader.load_training(root_path, src, batch_size, kwargs)
     loader_tar = data_loader.load_training(root_path, tar, batch_size, kwargs)
     loader_tar_test = data_loader.load_testing(
@@ -27,8 +29,8 @@ def train_epoch(epoch, model, dataloaders, optimizer):
     iter_target = iter(target_train_loader)
     num_iter = len(source_loader)
     for i in range(1, num_iter):
-        data_source, label_source = iter_source.next()
-        data_target, _ = iter_target.next()
+        data_source, label_source = next(iter_source)
+        data_target, _ = next(iter_target)
         if i % len(target_train_loader) == 0:
             iter_target = iter(target_train_loader)
         data_source, label_source = data_source.cuda(), label_source.cuda()
@@ -112,6 +114,9 @@ def get_args():
                         help='Log interval', default=10)
     parser.add_argument('--gpu', type=str,
                         help='GPU ID', default='0')
+    parser.add_argument('--num_workers', type=int,
+                        help='Number of dataloader worker processes (set 0 to avoid NFS multiprocessing cleanup issues)',
+                        default=0)
     args = parser.parse_args()
     return args
 
@@ -154,7 +159,7 @@ if __name__ == '__main__':
         raise SystemExit(0)
 
     dataloaders = load_data(args.root_path, args.src,
-                            args.tar, args.batch_size)
+                            args.tar, args.batch_size, args.num_workers)
     model = DSAN(num_classes=args.nclass, bottle_neck=args.bottleneck,
                  pretrained=args.pretrained).cuda()
     
