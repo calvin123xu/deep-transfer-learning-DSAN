@@ -4,6 +4,7 @@ import math
 import argparse
 import numpy as np
 import os
+import json
 
 from DSAN import DSAN
 import data_loader
@@ -141,6 +142,8 @@ def get_args():
     parser.add_argument('--num_workers', type=int,
                         help='Number of dataloader worker processes (set 0 to avoid NFS multiprocessing cleanup issues)',
                         default=0)
+    parser.add_argument('--result_json', type=str, default='',
+                        help='Optional path to write machine-readable run metrics as JSON')
     args = parser.parse_args()
     return args
 
@@ -236,3 +239,21 @@ if __name__ == '__main__':
     tar_test_acc = 100. * tar_test_correct / len(dataloaders[-1].dataset)
     print(f'Best source_val acc: {best_source_val_acc:.2f}%')
     print(f'Final tar_test acc: {tar_test_acc:.2f}%')
+
+    if args.result_json:
+        result = {
+            'src_train': args.src_train,
+            'src_val': args.src_val,
+            'tar_train': args.tar_train,
+            'tar_test': args.tar_test,
+            'seed': args.seed,
+            'weight': args.weight,
+            'best_source_val_acc': best_source_val_acc,
+            'target_test_acc': tar_test_acc,
+            'best_checkpoint': checkpoint_path,
+        }
+        result_dir = os.path.dirname(args.result_json)
+        if result_dir:
+            os.makedirs(result_dir, exist_ok=True)
+        with open(args.result_json, 'w', encoding='utf-8') as f:
+            json.dump(result, f, indent=2)
