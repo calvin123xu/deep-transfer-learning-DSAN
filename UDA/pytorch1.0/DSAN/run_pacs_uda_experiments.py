@@ -52,6 +52,27 @@ def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
 
 
+def validate_split_directories(root_path, domains):
+    missing = []
+    for domain in domains:
+        for suffix in ("train", "val", "test"):
+            split_dir = os.path.join(root_path, f"{domain}_{suffix}")
+            if not os.path.isdir(split_dir):
+                missing.append(split_dir)
+
+    if missing:
+        missing_preview = "\n  - " + "\n  - ".join(missing[:12])
+        if len(missing) > 12:
+            missing_preview += f"\n  - ... and {len(missing) - 12} more"
+        raise FileNotFoundError(
+            "Missing PACS split folders required by this experiment runner."
+            f"{missing_preview}\n"
+            "Expected folders like <domain>_train / <domain>_val / <domain>_test under --root_path.\n"
+            "If your dataset currently only has raw domain folders (e.g., 'art_painting', 'cartoon'), "
+            "create splits first with split_pacs_uda.py."
+        )
+
+
 def all_tasks():
     return [(s, t) for s, t in product(DOMAINS, DOMAINS) if s != t]
 
@@ -229,6 +250,7 @@ def write_text_summary(final_rows, out_txt):
 def main():
     args = parse_args()
     ensure_dir(args.output_dir)
+    validate_split_directories(args.root_path, DOMAINS)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     main_py = os.path.join(script_dir, "main.py")
