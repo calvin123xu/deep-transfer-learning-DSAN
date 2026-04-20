@@ -1,6 +1,7 @@
 import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
+import warnings
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -159,5 +160,12 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        try:
+            model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        except Exception as exc:
+            warnings.warn(
+                'Failed to load ImageNet pretrained ResNet-50 weights '
+                f'({exc}). Falling back to random initialization. '
+                'Use --pretrained false for fully offline runs.'
+            )
     return model

@@ -56,6 +56,14 @@ def all_tasks():
     return [(s, t) for s, t in product(DOMAINS, DOMAINS) if s != t]
 
 
+def tail_text(path, n_lines=40):
+    if not os.path.exists(path):
+        return ""
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+    return "".join(lines[-n_lines:])
+
+
 def run_single(main_py, args, src_domain, tar_domain, weight, seed, output_dir):
     task = f"{src_domain}->{tar_domain}"
     run_name = f"src-{src_domain}_tar-{tar_domain}_w-{weight:g}_seed-{seed}"
@@ -107,8 +115,10 @@ def run_single(main_py, args, src_domain, tar_domain, weight, seed, output_dir):
     with open(log_path, "w", encoding="utf-8") as logf:
         proc = subprocess.run(cmd, stdout=logf, stderr=subprocess.STDOUT, check=False)
     if proc.returncode != 0:
+        log_tail = tail_text(log_path)
+        detail = f"\n--- Last log lines ---\n{log_tail}" if log_tail else ""
         raise RuntimeError(
-            f"Training failed for {run_name} with return code {proc.returncode}. See {log_path}"
+            f"Training failed for {run_name} with return code {proc.returncode}. See {log_path}{detail}"
         )
     if not os.path.exists(result_json_path):
         raise FileNotFoundError(
