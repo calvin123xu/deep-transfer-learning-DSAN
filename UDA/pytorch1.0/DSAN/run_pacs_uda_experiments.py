@@ -181,7 +181,7 @@ def write_all_runs_csv(all_runs, output_csv):
             writer.writerow({k: row.get(k) for k in fieldnames})
 
 
-def select_weight_and_summarize(task_runs, seeds):
+def summarize_task_by_weight(task_runs, seeds):
     by_weight = {}
     for r in task_runs:
         by_weight.setdefault(float(r["weight"]), []).append(r)
@@ -193,31 +193,37 @@ def select_weight_and_summarize(task_runs, seeds):
 
     # Higher mean source_val first; on tie, smaller weight wins.
     weight_stats.sort(key=lambda x: (-x[1], x[0]))
-    selected_weight, mean_source_val_acc, selected_rows = weight_stats[0]
+    selected_weight = weight_stats[0][0]
 
-    rows_by_seed = {int(r["seed"]): r for r in selected_rows}
-    seed_target_accs = [float(rows_by_seed[s]["target_test_acc"]) for s in seeds]
-    mean_target = statistics.mean(seed_target_accs)
-    std_target = statistics.pstdev(seed_target_accs)
+    weight_rows = []
+    for weight, mean_source_val_acc, rows in weight_stats:
+        rows_by_seed = {int(r["seed"]): r for r in rows}
+        seed_target_accs = [float(rows_by_seed[s]["target_test_acc"]) for s in seeds]
+        mean_target = statistics.mean(seed_target_accs)
+        std_target = statistics.pstdev(seed_target_accs)
 
-    summary = {
-        "task": selected_rows[0]["task"],
-        "selected_weight": selected_weight,
-        "mean_source_val_acc": mean_source_val_acc,
-        "mean_target_test_acc": mean_target,
-        "std_target_test_acc": std_target,
-    }
-    for idx, seed in enumerate(seeds, start=1):
-        summary[f"seed{idx}_target_test_acc"] = rows_by_seed[seed]["target_test_acc"]
-        summary[f"seed{idx}"] = seed
+        summary = {
+            "task": rows[0]["task"],
+            "weight": weight,
+            "is_selected_weight": weight == selected_weight,
+            "mean_source_val_acc": mean_source_val_acc,
+            "mean_target_test_acc": mean_target,
+            "std_target_test_acc": std_target,
+        }
+        for idx, seed in enumerate(seeds, start=1):
+            summary[f"seed{idx}_target_test_acc"] = rows_by_seed[seed]["target_test_acc"]
+            summary[f"seed{idx}"] = seed
 
-    return summary
+        weight_rows.append(summary)
+
+    return weight_rows
 
 
 def write_final_summary_csv(final_rows, out_csv):
     fieldnames = [
         "task",
-        "selected_weight",
+        "weight",
+        "is_selected_weight",
         "mean_source_val_acc",
         "seed1_target_test_acc",
         "seed2_target_test_acc",
@@ -234,15 +240,23 @@ def write_final_summary_csv(final_rows, out_csv):
 
 def write_text_summary(final_rows, out_txt):
     lines = []
-    lines.append("PACS UDA Final Summary")
-    lines.append("======================")
+    lines.append("PACS UDA Final Summary (all explored weights)")
+    lines.append("===========================================")
+    grouped = {}
     for row in final_rows:
-        lines.append(
-            f"{row['task']}: selected_weight={row['selected_weight']}, "
-            f"mean_source_val_acc={row['mean_source_val_acc']:.4f}, "
-            f"target_test_mean={row['mean_target_test_acc']:.4f}, "
-            f"target_test_std={row['std_target_test_acc']:.4f}"
-        )
+        grouped.setdefault(row['task'], []).append(row)
+
+    for task in sorted(grouped.keys()):
+        lines.append(f"\n{task}")
+        lines.append("-" * len(task))
+        for row in grouped[task]:
+            selection_tag = " [selected]" if row["is_selected_weight"] else ""
+            lines.append(
+                f"weight={row['weight']}{selection_tag}, "
+                f"mean_source_val_acc={row['mean_source_val_acc']:.4f}, "
+                f"target_test_mean={row['mean_target_test_acc']:.4f}, "
+                f"target_test_std={row['std_target_test_acc']:.4f}"
+            )
     with open(out_txt, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -292,7 +306,7 @@ def main():
     for src_domain, tar_domain in tasks:
         task = f"{src_domain}->{tar_domain}"
         task_runs = [r for r in all_runs if r["task"] == task]
-        final_rows.append(select_weight_and_summarize(task_runs, args.seeds))
+        final_rows.extend(summarize_task_by_weight(task_runs, args.seeds))
 
     final_summary_csv = os.path.join(args.output_dir, "final_summary.csv")
     write_final_summary_csv(final_rows, final_summary_csv)
