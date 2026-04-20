@@ -2,6 +2,8 @@ conda activate /speed-scratch/qiaoyu/speed-hpc/env/dsan
 
 /speed-scratch/qiaoyu/speed-hpc/datasets/PACS
 
+/nfs/speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data/
+
 /speed-scratch/qiaoyu/speed-hpc/project/deep-transfer-learning-DSAN/UDA/pytorch1.0/DSAN
 
 git pull origin DSAN_project_update_uda_train_eval_protocol
