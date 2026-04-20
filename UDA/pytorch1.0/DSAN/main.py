@@ -9,6 +9,25 @@ from DSAN import DSAN
 import data_loader
 
 
+def save_checkpoint(model, checkpoint_path='model.pkl'):
+    torch.save(model.state_dict(), checkpoint_path)
+
+
+def load_checkpoint(model, checkpoint_path='model.pkl'):
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location='cuda')
+    except RuntimeError:
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+
+    if isinstance(checkpoint, dict):
+        model.load_state_dict(checkpoint)
+        return model
+
+    # Backward compatibility for legacy checkpoints serialized as whole models.
+    # PyTorch 2.6+ defaults to weights_only=True, so explicit False is needed.
+    return torch.load(checkpoint_path, weights_only=False)
+
+
 def load_data(root_path, src_train, src_val, tar_train, tar_test, batch_size, num_workers=0, pin_memory=None):
     if pin_memory is None:
         pin_memory = torch.cuda.is_available()
@@ -197,14 +216,14 @@ if __name__ == '__main__':
             best_source_val_acc = 100. * best_source_val_correct / \
                 len(dataloaders[1].dataset)
             stop = 0
-            torch.save(model, 'model.pkl')
+            save_checkpoint(model, 'model.pkl')
         print(
             f'{args.src_train}-{args.tar_train}: max source_val correct: {best_source_val_correct} max source_val accuracy: {best_source_val_acc:.2f}%\n')
 
         if stop >= args.early_stop:
             break
 
-    best_model = torch.load('model.pkl')
+    best_model = load_checkpoint(model, 'model.pkl')
     tar_test_correct = test(best_model, dataloaders[-1])
     tar_test_acc = 100. * tar_test_correct / len(dataloaders[-1].dataset)
     print(f'Best source_val acc: {best_source_val_acc:.2f}%')
