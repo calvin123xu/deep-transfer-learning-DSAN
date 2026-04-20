@@ -167,6 +167,13 @@ def run_smoke_test(args):
     print(f'Smoke test passed. Loss: {loss.item():.4f}, cls: {loss_cls.item():.4f}, lmmd: {loss_lmmd.item():.4f}')
 
 
+def get_checkpoint_path(args):
+    checkpoint_dir = 'chekpoint'
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    filename = f'source-{args.src_train}_target-{args.tar_train}_seed-{args.seed}_weight-{args.weight}.pkl'
+    return os.path.join(checkpoint_dir, filename)
+
+
 if __name__ == '__main__':
     args = get_args()
     print(vars(args))
@@ -187,6 +194,7 @@ if __name__ == '__main__':
                             args.batch_size, args.num_workers)
     model = DSAN(num_classes=args.nclass, bottle_neck=args.bottleneck,
                  pretrained=args.pretrained).cuda()
+    checkpoint_path = get_checkpoint_path(args)
     
     best_source_val_correct = 0
     best_source_val_acc = 0.0
@@ -216,14 +224,14 @@ if __name__ == '__main__':
             best_source_val_acc = 100. * best_source_val_correct / \
                 len(dataloaders[1].dataset)
             stop = 0
-            save_checkpoint(model, 'model.pkl')
+            save_checkpoint(model, checkpoint_path)
         print(
             f'{args.src_train}-{args.tar_train}: max source_val correct: {best_source_val_correct} max source_val accuracy: {best_source_val_acc:.2f}%\n')
 
         if stop >= args.early_stop:
             break
 
-    best_model = load_checkpoint(model, 'model.pkl')
+    best_model = load_checkpoint(model, checkpoint_path)
     tar_test_correct = test(best_model, dataloaders[-1])
     tar_test_acc = 100. * tar_test_correct / len(dataloaders[-1].dataset)
     print(f'Best source_val acc: {best_source_val_acc:.2f}%')
