@@ -51,9 +51,11 @@ def train_epoch(epoch, model, dataloaders, optimizer):
     num_iter = len(source_loader)
     for i in range(1, num_iter):
         data_source, label_source = next(iter_source)
-        data_target, _ = next(iter_target)
-        if i % len(target_train_loader) == 0:
+        try:
+            data_target, _ = next(iter_target)
+        except StopIteration:
             iter_target = iter(target_train_loader)
+            data_target, _ = next(iter_target)
         data_source, label_source = data_source.cuda(), label_source.cuda()
         data_target = data_target.cuda()
 
