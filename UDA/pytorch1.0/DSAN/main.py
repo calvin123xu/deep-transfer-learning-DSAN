@@ -9,22 +9,23 @@ from DSAN import DSAN
 import data_loader
 
 
-def load_data(root_path, src, tar, batch_size, num_workers=0, pin_memory=None):
+def load_data(root_path, src_train, src_val, tar_train, tar_test, batch_size, num_workers=0, pin_memory=None):
     if pin_memory is None:
         pin_memory = torch.cuda.is_available()
     kwargs = {'num_workers': num_workers, 'pin_memory': pin_memory}
-    loader_src = data_loader.load_training(root_path, src, batch_size, kwargs)
-    loader_tar = data_loader.load_training(root_path, tar, batch_size, kwargs)
+    loader_src_train = data_loader.load_training(root_path, src_train, batch_size, kwargs)
+    loader_src_val = data_loader.load_testing(root_path, src_val, batch_size, kwargs)
+    loader_tar_train = data_loader.load_training(root_path, tar_train, batch_size, kwargs)
     loader_tar_test = data_loader.load_testing(
-        root_path, tar, batch_size, kwargs)
-    return loader_src, loader_tar, loader_tar_test
+        root_path, tar_test, batch_size, kwargs)
+    return loader_src_train, loader_src_val, loader_tar_train, loader_tar_test
 
 
 def train_epoch(epoch, model, dataloaders, optimizer):
     
 
     model.train()
-    source_loader, target_train_loader, _ = dataloaders
+    source_loader, _, target_train_loader, _ = dataloaders
     iter_source = iter(source_loader)
     iter_target = iter(target_train_loader)
     num_iter = len(source_loader)
@@ -67,7 +68,7 @@ def test(model, dataloader):
         test_loss /= len(dataloader)
         print(
             f'Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(dataloader.dataset)} ({100. * correct / len(dataloader.dataset):.2f}%)')
-    return correct
+    return correct.item()
 
 
 def get_args():
@@ -82,10 +83,14 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', type=str, help='Root path for dataset',
                         default='/data/zhuyc/OFFICE31/')
-    parser.add_argument('--src', type=str,
-                        help='Source domain', default='amazon')
-    parser.add_argument('--tar', type=str,
-                        help='Target domain', default='webcam')
+    parser.add_argument('--src_train', type=str,
+                        help='Source train domain', default='amazon')
+    parser.add_argument('--src_val', type=str,
+                        help='Source validation domain', default='amazon')
+    parser.add_argument('--tar_train', type=str,
+                        help='Target train domain', default='webcam')
+    parser.add_argument('--tar_test', type=str,
+                        help='Target test domain', default='webcam')
     parser.add_argument('--nclass', type=int,
                         help='Number of classes', default=31)
     parser.add_argument('--batch_size', type=int,
@@ -158,12 +163,14 @@ if __name__ == '__main__':
         run_smoke_test(args)
         raise SystemExit(0)
 
-    dataloaders = load_data(args.root_path, args.src,
-                            args.tar, args.batch_size, args.num_workers)
+    dataloaders = load_data(args.root_path, args.src_train,
+                            args.src_val, args.tar_train, args.tar_test,
+                            args.batch_size, args.num_workers)
     model = DSAN(num_classes=args.nclass, bottle_neck=args.bottleneck,
                  pretrained=args.pretrained).cuda()
     
-    correct = 0
+    best_source_val_correct = 0
+    best_source_val_acc = 0.0
     stop = 0
 
     if args.bottleneck:
@@ -184,15 +191,21 @@ if __name__ == '__main__':
             param_group['lr'] = args.lr[index] / math.pow((1 + 10 * (epoch - 1) / args.nepoch), 0.75)
 
         train_epoch(epoch, model, dataloaders, optimizer)
-        t_correct = test(model, dataloaders[-1])
-        if t_correct > correct:
-            correct = t_correct
+        source_val_correct = test(model, dataloaders[1])
+        if source_val_correct > best_source_val_correct:
+            best_source_val_correct = source_val_correct
+            best_source_val_acc = 100. * best_source_val_correct / \
+                len(dataloaders[1].dataset)
             stop = 0
             torch.save(model, 'model.pkl')
         print(
-            f'{args.src}-{args.tar}: max correct: {correct} max accuracy: {100. * correct / len(dataloaders[-1].dataset):.2f}%\n')
+            f'{args.src_train}-{args.tar_train}: max source_val correct: {best_source_val_correct} max source_val accuracy: {best_source_val_acc:.2f}%\n')
 
         if stop >= args.early_stop:
-            print(
-                f'Final test acc: {100. * correct / len(dataloaders[-1].dataset):.2f}%')
             break
+
+    best_model = torch.load('model.pkl')
+    tar_test_correct = test(best_model, dataloaders[-1])
+    tar_test_acc = 100. * tar_test_correct / len(dataloaders[-1].dataset)
+    print(f'Best source_val acc: {best_source_val_acc:.2f}%')
+    print(f'Final tar_test acc: {tar_test_acc:.2f}%')
