@@ -4,6 +4,9 @@ conda activate /speed-scratch/qiaoyu/speed-hpc/env/dsan
 
 /speed-scratch/qiaoyu/speed-hpc/project/deep-transfer-learning-DSAN/UDA/pytorch1.0/DSAN
 
+20 epoch test on 0.5 and 0 asdn:
+python main.py --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data --src cartoon --tar photo --nclass 7 --batch_size 16 --nepoch 20 --weight 0.5 --pretrained true --gpu 0
+
 
 python main.py --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data --src cartoon --tar photo --nclass 7 --batch_size 16 --nepoch 20 --weight 0 --pretrained false --gpu 0
 
