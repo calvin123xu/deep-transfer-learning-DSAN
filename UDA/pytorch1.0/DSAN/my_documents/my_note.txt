@@ -10,6 +10,7 @@ python main.py --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_da
 
 python main.py --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data --src cartoon --tar photo --nclass 7 --batch_size 16 --nepoch 20 --weight 0 --pretrained true --gpu 0
 
+cartoon-photo: max correct: 1589 max accuracy: 95.15%
 
 最小训练代码修改：
 如果目标是先把最小实验跑通，我给你的判断很直接：
