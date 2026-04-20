@@ -37,6 +37,15 @@ python main.py \
   --pretrained true \
   --gpu 0
 
+python run_pacs_uda_experiments.py \
+  --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data \
+  --batch_size 16 \
+  --nepoch 50 \
+  --pretrained true \
+  --gpu 0 \
+  --weights 0 0.1 0.2 0.3 0.5 \
+  --seeds 2021 2022 2023 \
+  --output_dir experiments/pacs_uda
 
 
 
