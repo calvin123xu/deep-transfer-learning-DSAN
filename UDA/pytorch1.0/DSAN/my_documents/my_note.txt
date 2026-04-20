@@ -24,6 +24,19 @@ python split_pacs_uda.py \
   --seed 2021 \
   --overwrite
 
+python main.py \
+  --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data \
+  --src_train cartoon_train \
+  --src_val cartoon_val \
+  --tar_train photo_train \
+  --tar_test photo_test \
+  --nclass 7 \
+  --batch_size 16 \
+  --nepoch 20 \
+  --weight 0.5 \
+  --pretrained true \
+  --gpu 0
+
 
 最小训练代码修改：
 如果目标是先把最小实验跑通，我给你的判断很直接：
