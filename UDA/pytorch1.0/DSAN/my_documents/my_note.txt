@@ -12,6 +12,15 @@ python main.py --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_da
 
 cartoon-photo: max correct: 1589 max accuracy: 95.15%
 
+python split_pacs_uda.py \
+  --root_path /speed-scratch/qiaoyu/speed-hpc/datasets/PACS/pacs_data/pacs_data \
+  --src cartoon \
+  --tar photo \
+  --src_train_ratio 0.8 \
+  --seed 2021 \
+  --overwrite
+
+
 最小训练代码修改：
 如果目标是先把最小实验跑通，我给你的判断很直接：
 
