@@ -157,6 +157,46 @@ def run_single(main_py, args, src_domain, tar_domain, weight, seed, output_dir):
     return result
 
 
+def run_name_for(src_domain, tar_domain, weight, seed):
+    return f"src-{src_domain}_tar-{tar_domain}_w-{weight:g}_seed-{seed}"
+
+
+def expected_result_json_path(output_dir, src_domain, tar_domain, weight, seed):
+    run_results_dir = os.path.join(output_dir, "run_results")
+    return os.path.join(run_results_dir, f"{run_name_for(src_domain, tar_domain, weight, seed)}.json")
+
+
+def load_existing_run_result(output_dir, src_domain, tar_domain, weight, seed):
+    result_json_path = expected_result_json_path(
+        output_dir=output_dir,
+        src_domain=src_domain,
+        tar_domain=tar_domain,
+        weight=weight,
+        seed=seed,
+    )
+    if not os.path.exists(result_json_path):
+        return None
+
+    try:
+        with open(result_json_path, "r", encoding="utf-8") as f:
+            result = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    required_fields = ("seed", "weight", "best_source_val_acc", "target_test_acc")
+    if any(k not in result for k in required_fields):
+        return None
+
+    result["task"] = f"{src_domain}->{tar_domain}"
+    result["source_domain"] = src_domain
+    result["target_domain"] = tar_domain
+    result["training_log_path"] = os.path.join(
+        output_dir, "logs", f"{run_name_for(src_domain, tar_domain, weight, seed)}.log"
+    )
+    result["result_json_path"] = result_json_path
+    return result
+
+
 def write_all_runs_csv(all_runs, output_csv):
     fieldnames = [
         "task",
@@ -273,27 +313,43 @@ def main():
 
     tasks = all_tasks()
     all_runs = []
-
-    total = len(tasks) * len(args.weights) * len(args.seeds)
-    i = 0
+    pending_experiments = []
     for src_domain, tar_domain in tasks:
         for weight in args.weights:
             for seed in args.seeds:
-                i += 1
-                print(
-                    f"[{i}/{total}] Running {src_domain}->{tar_domain}, weight={weight}, seed={seed}",
-                    flush=True,
-                )
-                result = run_single(
-                    main_py=main_py,
-                    args=args,
+                existing = load_existing_run_result(
+                    output_dir=args.output_dir,
                     src_domain=src_domain,
                     tar_domain=tar_domain,
                     weight=weight,
                     seed=seed,
-                    output_dir=args.output_dir,
                 )
-                all_runs.append(result)
+                if existing is not None:
+                    all_runs.append(existing)
+                else:
+                    pending_experiments.append((src_domain, tar_domain, weight, seed))
+
+    total = len(tasks) * len(args.weights) * len(args.seeds)
+    done = len(all_runs)
+    print(f"Detected {done}/{total} completed experiments in {args.output_dir}.", flush=True)
+    print(f"Need to run {len(pending_experiments)} remaining experiments.", flush=True)
+
+    for i, (src_domain, tar_domain, weight, seed) in enumerate(pending_experiments, start=1):
+        print(
+            f"[resume {i}/{len(pending_experiments)}] Running {src_domain}->{tar_domain}, "
+            f"weight={weight}, seed={seed}",
+            flush=True,
+        )
+        result = run_single(
+            main_py=main_py,
+            args=args,
+            src_domain=src_domain,
+            tar_domain=tar_domain,
+            weight=weight,
+            seed=seed,
+            output_dir=args.output_dir,
+        )
+        all_runs.append(result)
 
     all_runs_json = os.path.join(args.output_dir, "all_runs.json")
     with open(all_runs_json, "w", encoding="utf-8") as f:
