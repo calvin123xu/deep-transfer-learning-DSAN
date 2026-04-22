@@ -2,7 +2,7 @@
 #SBATCH --job-name=dsan_experiment
 #SBATCH --account=weiping
 #SBATCH --partition=pt
-#SBATCH --gres=gpu:nvidia_a100_7g.80gb:1
+#SBATCH --gpus=1 -p pg 
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
